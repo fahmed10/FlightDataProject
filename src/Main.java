@@ -1,16 +1,33 @@
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
 public class Main {
+    private static final SQLiteDatabase database = new SQLiteDatabase("flight_data.sqlite", Main::onSQLiteError);
+    private static final LocalDate startDate = LocalDate.of(2025, 5, 1); // May 1st
+    private static final LocalDate endDate = LocalDate.of(2025, 8, 15); // Aug. 15th
+    private static final String[] cities = { "Cancun", "Las Vegas", "Denver", "Rome", "Milan", "Paris", "Madrid", "Amsterdam", "Singapore" };
+
     public static void main(String[] args) {
         FlightDataAPI api = new FlightDataAPI();
 
-        List<Flight> flights = api.getRoundTripNonstopEconomyFlights(
-                "Atlanta", "Cancun",
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(8)
-        );
+        for (String city : cities) {
+            LocalDate currentStartDate = startDate;
 
-        flights.forEach(System.out::println);
+            // Go through range of dates for this city
+            while (currentStartDate.plusWeeks(1).isBefore(endDate)) {
+                List<Flight> flights = api.getRoundTripNonstopEconomyFlights(
+                        "Atlanta", city,
+                        currentStartDate,
+                        currentStartDate.plusWeeks(1)
+                );
+
+                currentStartDate = currentStartDate.plusDays(1);
+            }
+        }
+    }
+
+    private static void onSQLiteError(SQLException exception) {
+        System.out.println("[SQLite Error] " + exception.getMessage());
     }
 }

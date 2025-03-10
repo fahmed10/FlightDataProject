@@ -1,36 +1,22 @@
 import java.sql.*;
+import java.util.function.Consumer;
 
 public class SQLiteDatabase implements AutoCloseable {
-	private final Connection connection;
 	private static final int TIMEOUT = 3;
+	private Connection connection = null;
+	private final Consumer<SQLException> errorHandler;
 
 	/**
 	 * Constructs an <code>SQLiteDatabase</code>.
 	 * @param dbFilePath The SQLite file to connect to.
-	 * @param autoCommit Whether to enable auto-commit mode or not.
-	 * @throws SQLException If an error occurs while connecting to the database.
 	 */
-	public SQLiteDatabase(String dbFilePath, boolean autoCommit) throws SQLException {
-		connection = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath);
-		connection.setAutoCommit(autoCommit);
-	}
-
-	/**
-	 * Makes all changes to the database since the last transaction permanent.
-	 * This method should only be called if auto-commit mode is disabled.
-	 * @throws SQLException If a database error occurs.
-	 */
-	public void commitTransaction() throws SQLException {
-		connection.commit();
-	}
-
-	/**
-	 * Undoes all changes to the database since the last transaction.
-	 * This method should only be called if auto-commit mode is disabled.
-	 * @throws SQLException If a database error occurs.
-	 */
-	public void rollbackTransaction() throws SQLException {
-		connection.rollback();
+	public SQLiteDatabase(String dbFilePath, Consumer<SQLException> errorHandler) {
+		this.errorHandler = errorHandler;
+		try {
+			connection = DriverManager.getConnection("jdbc:sqlite:" + dbFilePath);
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+		}
 	}
 
 	/**
@@ -39,12 +25,16 @@ public class SQLiteDatabase implements AutoCloseable {
 	 * underlying <code>Statement</code> by calling <code>resultSet.getStatement().close()</code>.
 	 * @param sql The SQL string to execute.
 	 * @return The <code>ResultSet</code> which contains the data returned by the query.
-	 * @throws SQLException If a database error occurs.
 	 */
-	public ResultSet query(String sql) throws SQLException {
-		Statement statement = connection.createStatement();
-		statement.setQueryTimeout(TIMEOUT);
-		return statement.executeQuery(sql);
+	public ResultSet query(String sql) {
+		try {
+			Statement statement = connection.createStatement();
+			statement.setQueryTimeout(TIMEOUT);
+			return statement.executeQuery(sql);
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+			return null;
+		}
 	}
 
 	/**
@@ -55,24 +45,32 @@ public class SQLiteDatabase implements AutoCloseable {
 	 * @param sql The SQL string to execute.
 	 * @param parameters The parameters to use.
 	 * @return The <code>ResultSet</code> which contains the data returned by the query.
-	 * @throws SQLException If a database error occurs.
 	 */
-	public ResultSet queryPrepared(String sql, Object... parameters) throws SQLException {
-		return createPreparedStatement(sql, parameters).executeQuery();
+	public ResultSet queryPrepared(String sql, Object... parameters) {
+		try {
+			return createPreparedStatement(sql, parameters).executeQuery();
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+			return null;
+		}
 	}
 
 	/**
 	 * Executes the given SQL statement and returns the number of rows affected.
 	 * @param sql The SQL string to execute.
 	 * @return The number of rows affected.
-	 * @throws SQLException If a database error occurs.
 	 */
-	public int update(String sql) throws SQLException {
-		Statement statement = connection.createStatement();
-		statement.setQueryTimeout(TIMEOUT);
-		int rowCount = statement.executeUpdate(sql);
-		statement.close();
-		return rowCount;
+	public int update(String sql) {
+		try {
+			Statement statement = connection.createStatement();
+			statement.setQueryTimeout(TIMEOUT);
+			int rowCount = statement.executeUpdate(sql);
+			statement.close();
+			return rowCount;
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+			return 0;
+		}
 	}
 
 	/**
@@ -80,28 +78,29 @@ public class SQLiteDatabase implements AutoCloseable {
 	 * @param sql The SQL string to execute.
 	 * @param parameters The parameters to use.
 	 * @return The number of rows affected.
-	 * @throws SQLException If a database error occurs.
 	 */
-	public int updatePrepared(String sql, Object... parameters) throws SQLException {
-		PreparedStatement statement = createPreparedStatement(sql, parameters);
-		int rowCount = statement.executeUpdate();
-		statement.close();
-		return rowCount;
+	public int updatePrepared(String sql, Object... parameters) {
+		try {
+			PreparedStatement statement = createPreparedStatement(sql, parameters);
+			int rowCount = statement.executeUpdate();
+			statement.close();
+			return rowCount;
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+			return 0;
+		}
 	}
 
 	/**
-	 * Closes this <code>DB</code> by closing its underlying connection object. If auto-commit
-	 * mode is off, the current transaction is rolled back before the connection to the database
-	 * is closed.
-	 * @throws SQLException If a database error occurs.
+	 * Closes this <code>DB</code> by closing its underlying connection object.
 	 */
 	@Override
-	public void close() throws SQLException {
-		if (!connection.getAutoCommit()) {
-			connection.rollback();
+	public void close() {
+		try {
+			connection.close();
+		} catch (SQLException e) {
+			errorHandler.accept(e);
 		}
-
-		connection.close();
 	}
 
 	/**
@@ -109,16 +108,20 @@ public class SQLiteDatabase implements AutoCloseable {
 	 * @param sql The SQL string to use.
 	 * @param parameters The parameters to use.
 	 * @return The <code>PreparedStatement</code> with the given SQL string and parameters.
-	 * @throws SQLException If a database error occurs.
 	 */
-	private PreparedStatement createPreparedStatement(String sql, Object... parameters) throws SQLException {
-		PreparedStatement statement = connection.prepareStatement(sql);
-		statement.setQueryTimeout(TIMEOUT);
+	private PreparedStatement createPreparedStatement(String sql, Object... parameters) {
+		try {
+			PreparedStatement statement = connection.prepareStatement(sql);
+			statement.setQueryTimeout(TIMEOUT);
 
-		for (int i = 0; i < parameters.length; i++) {
-			statement.setObject(i + 1, parameters[i]);
+			for (int i = 0; i < parameters.length; i++) {
+				statement.setObject(i + 1, parameters[i]);
+			}
+
+			return statement;
+		} catch (SQLException e) {
+			errorHandler.accept(e);
+			return null;
 		}
-
-		return statement;
 	}
 }
