@@ -3,19 +3,47 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class FlightDataAPI implements AutoCloseable {
-    private final WebDriver driver = new ChromeDriver();
+    private final ChromeDriver driver;
     private final DateTimeFormatter urlDateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
 
     FlightDataAPI() {
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+        ChromeOptions options = new ChromeOptions();
+        options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
+        options.setExperimentalOption("useAutomationExtension", false);
+        options.addArguments("--disable-blink-features",
+                "--disable-blink-features=AutomationControlled",
+                "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
+        driver = new ChromeDriver(options);
+        Map<String, Object> params = new HashMap<>();
+        params.put("source", """
+    Object.defineProperty(Navigator.prototype, 'webdriver', {
+        set: undefined,
+        enumerable: true,
+        configurable: true,
+        get: new Proxy(
+            Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver').get,
+            { apply: (target, thisArg, args) => {
+                // emulate getter call validation
+                Reflect.apply(target, thisArg, args);
+                return undefined;
+            }}
+        )
+    });
+""");
+        driver.executeCdpCommand("Page.addScriptToEvaluateOnNewDocument", params);
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
     }
 
     public List<Flight> getRoundTripNonstopEconomyFlights(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
