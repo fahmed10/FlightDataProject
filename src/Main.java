@@ -22,6 +22,8 @@ public class Main {
                         currentStartDate.plusWeeks(1)
                 );
 
+                flights.forEach(System.out::println);
+                System.out.println();
                 currentStartDate = currentStartDate.plusDays(1);
             }
         }

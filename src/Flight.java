@@ -1,11 +1,11 @@
 import java.time.LocalDate;
 
 public class Flight {
-    private final int price;
+    private final double price;
     private final String fromCity, toCity;
     private final LocalDate fromDate, toDate;
 
-    public Flight(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate, int price) {
+    public Flight(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate, double price) {
         this.fromCity = fromCity;
         this.toCity = toCity;
         this.fromDate = fromDate;
@@ -13,7 +13,7 @@ public class Flight {
         this.price = price;
     }
 
-    public int getPrice() {
+    public double getPrice() {
         return price;
     }
 

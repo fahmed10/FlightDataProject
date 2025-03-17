@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 public class FlightDataAPI implements AutoCloseable {
     private final ChromeDriver driver;
-    private final DateTimeFormatter urlDateFormatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+    private final DateTimeFormatter urlDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     FlightDataAPI() {
         ChromeOptions options = new ChromeOptions();
@@ -48,17 +48,24 @@ public class FlightDataAPI implements AutoCloseable {
 
     public List<Flight> getRoundTripNonstopEconomyFlights(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
         driver.get(buildUrl(fromCity, toCity, fromDate, toDate));
-        List<WebElement> listings = driver.findElements(By.cssSelector("[data-test-id=\"offer-listing\"]"));
 
-        return listings.stream()
-                .map(l -> l.findElement(By.cssSelector("span.is-visually-hidden.uitk-price-a11y")).getText())
-                .mapToInt(p -> Integer.parseInt(p.replaceAll("[$,]", "")))
+        List<Flight> flights = driver.findElements(By.cssSelector("[class*=FlightCardPrice-module__priceContainer]"))
+                .stream()
+                .map(p -> p.getText().replaceAll("[$,]", ""))
+                .mapToDouble(Double::parseDouble)
                 .mapToObj(p -> new Flight(fromCity, toCity, fromDate, toDate, p))
-                .collect(Collectors.toList());
+                .toList();
+
+        if (!driver.findElements(By.cssSelector("[data-testid=\"no_direct_flights_banner\"]")).isEmpty())
+        {
+            return List.of();
+        }
+
+        return flights;
     }
 
     String buildUrl(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
-        return "https://www.expedia.com/Flights-Search?filters=[{\"numOfStopFilterValue\":{\"stopInfo\":{\"numberOfStops\":0,\"stopFilterOperation\":\"EQUAL\"}}}]&leg1=from:"+fromCity+",to:"+toCity+",departure:"+fromDate.format(urlDateFormatter)+"TANYT,fromType:U,toType:U&leg2=from:"+toCity+",to:"+fromCity+",departure:"+toDate.format(urlDateFormatter)+"TANYT,fromType:U,toType:U&mode=search&options=carrier:,cabinclass:,maxhops:1,nopenalty:N&passengers=adults:1,children:0,infantinlap:N&trip=roundtrip";
+        return "https://flights.booking.com/flights/"+fromCity+".CITY-"+toCity+".CITY/?type=ROUNDTRIP&adults=1&cabinClass=ECONOMY&children=&from="+fromCity+".CITY&to="+toCity+".CITY&depart="+fromDate.format(urlDateFormatter)+"&return="+toDate.format(urlDateFormatter)+"&sort=CHEAPEST&travelPurpose=leisure&stops=0";
     }
 
     @Override
