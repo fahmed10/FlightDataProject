@@ -15,7 +15,7 @@ public class Main {
             LocalDate currentStartDate = startDate;
 
             // Go through range of dates for this city
-            while (currentStartDate.plusWeeks(1).isBefore(endDate)) {
+            while (currentStartDate.plusWeeks(1).isBefore(endDate.plusDays(1))) {
                 List<Flight> flights = api.getRoundTripNonstopEconomyFlights(
                         "Atlanta", city,
                         currentStartDate,
@@ -25,6 +25,8 @@ public class Main {
                 currentStartDate = currentStartDate.plusDays(1);
             }
         }
+
+        api.close();
     }
 
     private static void onSQLiteError(SQLException exception) {

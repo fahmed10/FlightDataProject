@@ -37,7 +37,7 @@ public class FlightDataAPI implements AutoCloseable {
             { apply: (target, thisArg, args) => {
                 // emulate getter call validation
                 Reflect.apply(target, thisArg, args);
-                return undefined;
+                return false;
             }}
         )
     });
