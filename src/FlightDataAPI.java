@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class FlightDataAPI implements AutoCloseable {
     private final ChromeDriver driver;
@@ -35,7 +34,6 @@ public class FlightDataAPI implements AutoCloseable {
         get: new Proxy(
             Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver').get,
             { apply: (target, thisArg, args) => {
-                // emulate getter call validation
                 Reflect.apply(target, thisArg, args);
                 return false;
             }}
@@ -47,14 +45,9 @@ public class FlightDataAPI implements AutoCloseable {
     }
 
     public List<Flight> getRoundTripNonstopEconomyFlights(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
-        driver.get(buildUrl(fromCity, toCity, fromDate, toDate));
+        driver.get(buildUrl(fromCity, toCity, fromDate, toDate, "&stops=0"));
 
-        List<Flight> flights = driver.findElements(By.cssSelector("[class*=FlightCardPrice-module__priceContainer]"))
-                .stream()
-                .map(p -> p.getText().replaceAll("[$,]", ""))
-                .mapToDouble(Double::parseDouble)
-                .mapToObj(p -> new Flight(fromCity, toCity, fromDate, toDate, p))
-                .toList();
+        List<Flight> flights = findFlightsOnPage(driver, fromCity, toCity, fromDate, toDate);
 
         if (!driver.findElements(By.cssSelector("[data-testid=\"no_direct_flights_banner\"]")).isEmpty())
         {
@@ -64,8 +57,27 @@ public class FlightDataAPI implements AutoCloseable {
         return flights;
     }
 
-    String buildUrl(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
-        return "https://flights.booking.com/flights/"+fromCity+".CITY-"+toCity+".CITY/?type=ROUNDTRIP&adults=1&cabinClass=ECONOMY&children=&from="+fromCity+".CITY&to="+toCity+".CITY&depart="+fromDate.format(urlDateFormatter)+"&return="+toDate.format(urlDateFormatter)+"&sort=CHEAPEST&travelPurpose=leisure&stops=0";
+    public List<Flight> getRoundTripEconomyFlights(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
+        driver.get(buildUrl(fromCity, toCity, fromDate, toDate, ""));
+        return findFlightsOnPage(driver, fromCity, toCity, fromDate, toDate);
+    }
+
+    private List<Flight> findFlightsOnPage(WebDriver driver, String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
+        return driver.findElements(By.cssSelector("[data-testid=\"searchresults_card\"]"))
+                .stream()
+                .map(p -> {
+                    WebElement priceElement = p.findElement(By.cssSelector("[class*=FlightCardPrice-module__priceContainer]"));
+                    double price = Double.parseDouble(priceElement.getText().replaceAll("[$,]", ""));
+                    List<WebElement> stopsElements = p.findElements(By.cssSelector("[class*=\"styles-module__stops__inner\"]"));
+                    int fromStops = stopsElements.get(0).getText().equals("Direct") ? 0 : Integer.parseInt(stopsElements.get(0).getText().split(" ")[0]);
+                    int toStops = stopsElements.get(1).getText().equals("Direct") ? 0 : Integer.parseInt(stopsElements.get(1).getText().split(" ")[0]);
+                    return new Flight(fromCity, toCity, fromDate, toDate, price, fromStops == 0 && toStops == 0);
+                })
+                .toList();
+    }
+
+    String buildUrl(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate, String filters) {
+        return "https://flights.booking.com/flights/"+fromCity+".CITY-"+toCity+".CITY/?type=ROUNDTRIP&adults=1&cabinClass=ECONOMY&children=&from="+fromCity+".CITY&to="+toCity+".CITY&depart="+fromDate.format(urlDateFormatter)+"&return="+toDate.format(urlDateFormatter)+"&sort=CHEAPEST&travelPurpose=leisure" + filters;
     }
 
     @Override
