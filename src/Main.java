@@ -22,6 +22,7 @@ public class Main {
                         currentStartDate.plusWeeks(1)
                 );
 
+                // TODO: Save to database instead of printing for each flight
                 flights.forEach(System.out::println);
                 System.out.println();
                 currentStartDate = currentStartDate.plusDays(1);
@@ -29,6 +30,8 @@ public class Main {
         }
 
         api.close();
+
+        // TODO: Query database to get cheapest flight for each city, print it
     }
 
     private static void onSQLiteError(SQLException exception) {
