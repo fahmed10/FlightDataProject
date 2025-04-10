@@ -41,7 +41,7 @@ public class FlightDataAPI implements AutoCloseable {
     });
 """);
         driver.executeCdpCommand("Page.addScriptToEvaluateOnNewDocument", params);
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(20));
     }
 
     public List<Flight> getRoundTripNonstopEconomyFlights(String fromCity, String toCity, LocalDate fromDate, LocalDate toDate) {
@@ -68,9 +68,10 @@ public class FlightDataAPI implements AutoCloseable {
                 .map(p -> {
                     WebElement priceElement = p.findElement(By.cssSelector("[class*=FlightCardPrice-module__priceContainer]"));
                     double price = Double.parseDouble(priceElement.getText().replaceAll("[$,]", ""));
-                    List<WebElement> stopsElements = p.findElements(By.cssSelector("[class*=\"styles-module__stops__inner\"]"));
-                    int fromStops = stopsElements.get(0).getText().equals("Direct") ? 0 : Integer.parseInt(stopsElements.get(0).getText().split(" ")[0]);
-                    int toStops = stopsElements.get(1).getText().equals("Direct") ? 0 : Integer.parseInt(stopsElements.get(1).getText().split(" ")[0]);
+                    WebElement fromStopsElement = p.findElement(By.cssSelector("[data-testid=flight_card_segment_stops_0]"));
+                    WebElement toStopsElement = p.findElement(By.cssSelector("[data-testid=flight_card_segment_stops_1]"));
+                    int fromStops = fromStopsElement.getText().equals("Direct") ? 0 : Integer.parseInt(fromStopsElement.getText().split(" ")[0]);
+                    int toStops = toStopsElement.getText().equals("Direct") ? 0 : Integer.parseInt(toStopsElement.getText().split(" ")[0]);
                     return new Flight(fromCity, toCity, fromDate, toDate, price, fromStops == 0 && toStops == 0);
                 })
                 .toList();

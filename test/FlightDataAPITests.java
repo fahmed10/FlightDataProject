@@ -39,9 +39,33 @@ public class FlightDataAPITests {
 
             List<Flight> flights = new ArrayList<>();
             while (flights.isEmpty()) {
-                flights = flightDataAPI.getRoundTripEconomyFlights("Atlanta", city, start, end);
                 start = start.plusDays(1);
                 end = end.plusDays(1);
+                flights = flightDataAPI.getRoundTripEconomyFlights("Atlanta", city, start, end);
+            }
+
+            for (Flight flight : flights) {
+                Assert.assertEquals("Atlanta", flight.getFromCity());
+                Assert.assertEquals(city, flight.getToCity());
+                Assert.assertEquals(start, flight.getFromDate());
+                Assert.assertEquals(end, flight.getToDate());
+                Assert.assertTrue(flight.getPrice() > 0);
+            }
+        }
+    }
+
+    @Test
+    public void testGetRoundTripNonstopEconomyFlights() {
+        String[] cities = { "Cancun", "Paris", "Amsterdam" };
+        for (String city : cities) {
+            LocalDate start = LocalDate.now().plusWeeks(3);
+            LocalDate end = LocalDate.now().plusWeeks(4);
+
+            List<Flight> flights = new ArrayList<>();
+            while (flights.isEmpty()) {
+                start = start.plusDays(1);
+                end = end.plusDays(1);
+                flights = flightDataAPI.getRoundTripNonstopEconomyFlights("Atlanta", city, start, end);
             }
 
             for (Flight flight : flights) {
